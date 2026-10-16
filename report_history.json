@@ -1,0 +1,59 @@
+{
+  "2026-09-29": {
+    "fmc": 17,
+    "bg": 18
+  },
+  "2026-10-05": {
+    "fmc": 18,
+    "bg": 33
+  },
+  "2026-10-09": {
+    "fmc": 29,
+    "bg": 43
+  },
+  "2026-10-12": {
+    "fmc": 31,
+    "bg": 45,
+    "ongoing": 762,
+    "ongoing_eq": 139,
+    "ongoing_regular": 620,
+    "ongoing_manpower": 3
+  },
+  "2026-10-14": {
+    "fmc": 32,
+    "bg": 45,
+    "notice": 14,
+    "ongoing": 742,
+    "ongoing_eq": 144,
+    "ongoing_regular": 596,
+    "ongoing_manpower": 2
+  },
+  "2026-10-15": {
+    "fmc": 35,
+    "bg": 46,
+    "fmc_pending": 35,
+    "bg_pending": 45,
+    "fmc_wait": 10,
+    "bg_wait": 15,
+    "notice": 14,
+    "notice_open": 14,
+    "ongoing": 739,
+    "ongoing_eq": 141,
+    "ongoing_regular": 596,
+    "ongoing_manpower": 2
+  },
+  "2026-10-16": {
+    "fmc": 39,
+    "bg": 46,
+    "fmc_pending": 39,
+    "bg_pending": 45,
+    "fmc_wait": 9,
+    "bg_wait": 16,
+    "notice": 19,
+    "notice_open": 19,
+    "ongoing": 740,
+    "ongoing_eq": 142,
+    "ongoing_regular": 596,
+    "ongoing_manpower": 2
+  }
+}

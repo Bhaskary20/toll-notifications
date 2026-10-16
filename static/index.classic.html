@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toll Operations Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f3f0e8; --panel:#faf8f3; --ink:#16181c; --muted:#6b6d70; --rule:#d9d4c7; --rule-strong:#16181c;
+  --accent:#c2411e; --good:#1f7a4d; --warn:#a96a0c; --bad:#b3261e;
+  --serif:'Newsreader',Georgia,'Times New Roman',serif;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{--paper:#101214; --panel:#16191c; --ink:#ece8df; --muted:#8c9096; --rule:#2a2e33; --rule-strong:#ece8df;
+        --accent:#e8704a; --good:#4cc38a; --warn:#e0a23a; --bad:#f07a70}
+}
+*{box-sizing:border-box;margin:0}
+body{background:var(--paper);color:var(--ink);font:400 14.5px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+a{color:inherit}
+.hidden{display:none!important}
+.mono{font-family:var(--mono)}
+
+/* masthead */
+.mast{max-width:1280px;margin:0 auto;padding:30px 44px 0}
+.mast-top{display:flex;justify-content:space-between;align-items:baseline;gap:20px;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.mast h1{font:400 clamp(34px,5vw,54px)/1.02 var(--serif);letter-spacing:-.02em;margin:18px 0 22px}
+.mast h1 em{font-style:italic;color:var(--accent)}
+.mast-rule{border:0;border-top:2px solid var(--rule-strong)}
+.status{display:flex;align-items:center;gap:14px;text-transform:none;letter-spacing:0;font:500 12.5px var(--mono);color:var(--ink)}
+.mark{display:inline-block;width:8px;height:8px;margin-right:8px;background:var(--muted);vertical-align:1px}
+#pill.good .mark{background:var(--good)} #pill.warn .mark{background:var(--warn);animation:blink 1s steps(2) infinite}
+#pill.bad .mark{background:var(--bad)}
+@keyframes blink{50%{opacity:.2}}
+.link{font:500 12.5px var(--mono);text-decoration:underline;text-underline-offset:3px;color:var(--muted)}
+.link:hover{color:var(--accent)}
+
+/* layout */
+.layout{max-width:1280px;margin:0 auto;padding:36px 44px 90px;display:grid;grid-template-columns:300px minmax(0,1fr);gap:64px}
+.layout>*{min-width:0}
+@media(max-width:980px){.layout{grid-template-columns:minmax(0,1fr);gap:44px;padding:28px 20px 70px}.mast{padding:22px 20px 0}
+  .mast-top{flex-wrap:wrap;row-gap:10px}.log{overflow-wrap:anywhere}}
+.label{display:flex;align-items:baseline;gap:10px;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:18px}
+.label b{color:var(--accent);font-weight:500}
+.label .grow{flex:1}
+.label .meta{letter-spacing:0;text-transform:none;font-size:11.5px}
+.block{margin-bottom:44px}
+
+/* steps */
+.steps{list-style:none;padding:0;margin:0 0 22px}
+.step{display:flex;gap:14px;padding:7px 0;color:var(--muted);font-size:13.5px}
+.step i{font:500 11.5px/1.9 var(--mono);font-style:normal;width:22px;color:var(--muted)}
+.step.active{color:var(--ink);font-weight:500} .step.active i{color:var(--accent)}
+.step.done{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--rule)} .step.done i{color:var(--good)}
+
+/* buttons / fields */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:11px 18px;border:1px solid var(--ink);border-radius:3px;font:500 13.5px var(--sans);background:transparent;transition:background .12s,color .12s}
+.btn:hover:not(:disabled){background:var(--ink);color:var(--paper)}
+.btn.solid{background:var(--ink);color:var(--paper)}
+.btn.solid:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.sm{padding:6px 11px;font-size:12.5px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.field{width:100%;background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:11px 12px;font:400 14px var(--sans);outline:none}
+.field:focus{border-color:var(--ink)}
+.field.code{font:500 20px var(--mono);letter-spacing:.28em;margin:12px 0}
+select.field{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink) 50%),linear-gradient(135deg,var(--ink) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+.note{color:var(--muted);font-size:13px;margin-bottom:16px}
+.err{margin-top:12px;padding:9px 12px;border-left:3px solid var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent);color:var(--bad);font-size:13px}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .7s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* captcha */
+.capbox{display:flex;gap:12px;align-items:stretch}
+.capbox .img{flex:1;background:#808080;border:1px solid var(--ink);display:grid;place-items:center;min-height:60px}
+.capbox img{height:46px}
+.capbox .btn{padding:0 12px;font-size:12px}
+
+/* facts */
+.facts{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:13px}
+.facts dt{color:var(--muted)} .facts dd{text-align:right;font-family:var(--mono);font-size:12.5px}
+
+/* log */
+.log{font:400 11.5px/1.75 var(--mono);color:var(--muted);max-height:210px;overflow:auto}
+.log div{display:flex;gap:12px} .log b{font-weight:400;color:var(--ink);opacity:.45;flex:none}
+
+/* reports */
+.h2{font:400 30px/1.15 var(--serif);letter-spacing:-.01em;margin-bottom:6px}
+.sub{color:var(--muted);max-width:60ch;margin-bottom:22px}
+#modTabs{display:flex;gap:28px;border-bottom:1px solid var(--rule);margin-bottom:26px}
+#modTabs .chip{padding:0 0 12px;margin-bottom:-1px;font:500 14px var(--sans);color:var(--muted);border-bottom:2px solid transparent}
+#modTabs .chip:hover{color:var(--ink)}
+#modTabs .chip.star{color:var(--ink);border-bottom-color:var(--accent)}
+.filter{display:grid;grid-template-columns:110px minmax(0,420px);align-items:center;gap:14px;margin-bottom:26px}
+.filter label{font:500 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.actions{border-top:1px solid var(--rule)}
+.action{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:18px 0;border-bottom:1px solid var(--rule)}
+.action h4{font:500 15px var(--sans);margin-bottom:2px}
+.action p{color:var(--muted);font-size:13px}
+.action .btn{min-width:200px}
+.result{margin-top:20px;font:400 12.5px/1.8 var(--mono);min-height:22px}
+.result a{color:var(--good);text-underline-offset:3px}
+.result .bad{color:var(--bad)}
+
+/* tables / lists */
+.rows{width:100%;border-collapse:collapse;font-size:13.5px}
+.rows td{padding:10px 0;border-bottom:1px solid var(--rule);vertical-align:middle}
+.rows td.t{max-width:560px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:16px}
+.rows td.n{text-align:right;white-space:nowrap;font:400 12px var(--mono);color:var(--muted)}
+.rows a{text-decoration:none} .rows a:hover{color:var(--accent);text-decoration:underline}
+.empty{color:var(--muted);padding:16px 0;font-size:13px}
+.done-ok{color:var(--good);font:500 12px var(--mono)}
+.scroll{max-height:340px;overflow:auto}
+
+/* explorer */
+details.explore{border-top:1px solid var(--rule);margin-top:50px;padding-top:6px}
+details.explore summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px;padding:14px 0;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+details.explore summary::-webkit-details-marker{display:none}
+details.explore summary::before{content:'+';color:var(--accent);width:12px}
+details.explore[open] summary::before{content:'\2212'}
+.chips{display:flex;flex-wrap:wrap;gap:6px 18px;max-height:140px;overflow:auto;margin:6px 0 18px}
+.chips .chip{font-size:13px;color:var(--muted);text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:4px}
+.chips .chip:hover,.chips .chip.star{color:var(--accent)}
+.chips .chip.star{text-decoration-color:var(--accent);font-weight:500}
+.row{display:flex;gap:10px}
+.live{width:100%;border:1px solid var(--rule);display:block}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-top:34px}
+@media(max-width:980px){.cols{grid-template-columns:1fr}.action{grid-template-columns:1fr}.filter{grid-template-columns:1fr;gap:6px}}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="mast-top">
+    <span>NHAI Data Lake &nbsp;/&nbsp; HQ Technical Division</span>
+    <span class="status">
+      <span id="pill"><span class="mark"></span><span id="pillText">Not connected</span></span>
+      <button id="btnDisc" class="link hidden">Disconnect</button>
+    </span>
+  </div>
+  <h1>Toll Operations <em>Desk</em></h1>
+  <hr class="mast-rule">
+</header>
+
+<main class="layout">
+
+  <!-- Session -->
+  <aside>
+    <section class="block">
+      <div class="label"><b>01</b> Session</div>
+      <ol class="steps" id="steps">
+        <li class="step" data-s="1"><i>I</i>Open the portal</li>
+        <li class="step" data-s="2"><i>II</i>Enter the captcha</li>
+        <li class="step" data-s="3"><i>III</i>Signed in</li>
+        <li class="step" data-s="4"><i>IV</i>Pull reports</li>
+      </ol>
+
+      <div id="vIdle">
+        <p class="note">Opens the Data Lake in a background browser, enters the saved role and credentials, and brings the captcha here.</p>
+        <div id="credBox" class="hidden" style="margin-bottom:12px">
+          <p class="note" style="margin-bottom:8px">First time on this computer: enter your portal login (HQ Technical Division). It is saved on this computer only.</p>
+          <input id="credUser" class="field" autocomplete="off" spellcheck="false" placeholder="Portal user name" style="margin-bottom:8px">
+          <input id="credPass" class="field" type="password" autocomplete="off" placeholder="Portal password">
+        </div>
+        <button id="btnConnect" class="btn solid block">Connect to the portal</button>
+        <a id="credChange" class="note hidden" href="#" style="display:block;margin-top:10px">Change saved login</a>
+      </div>
+
+      <div id="vBusy" class="hidden">
+        <p class="note" id="busyText" style="display:flex;gap:10px;align-items:center"><span class="spin"></span><span>Working…</span></p>
+      </div>
+
+      <div id="vCaptcha" class="hidden">
+        <p class="note" style="margin-bottom:12px">Credentials entered. Type the characters shown. Case matters.</p>
+        <div class="capbox">
+          <div class="img"><img id="capImg" alt="captcha"></div>
+          <button id="btnRef" class="btn sm" title="Get a new captcha">New</button>
+        </div>
+        <input id="capText" class="field code" maxlength="15" autocomplete="off" spellcheck="false" placeholder="········">
+        <button id="btnSubmit" class="btn solid block">Sign in</button>
+        <div id="capErr" class="err hidden"></div>
+      </div>
+
+      <div id="vOn" class="hidden">
+        <dl class="facts">
+          <dt>User</dt><dd>GMC</dd>
+          <dt>Role</dt><dd>HQ Technical Div.</dd>
+          <dt>Portal</dt><dd>datalakeg.nhai.gov.in</dd>
+          <dt>Sections</dt><dd id="navCount">0</dd>
+        </dl>
+      </div>
+      <div id="connErr" class="err hidden"></div>
+    </section>
+
+    <section class="block">
+      <div class="label"><b>02</b> Activity</div>
+      <div id="log" class="log"><div><b>--:--</b>Waiting…</div></div>
+    </section>
+  </aside>
+
+  <!-- Workbench -->
+  <div>
+    <section id="cBG">
+      <div class="label"><b>03</b> Reports <span class="grow"></span><span class="meta" id="bgInfo">Connect first</span></div>
+      <h2 class="h2" id="modTitle">BG Release &amp; Securities</h2>
+      <p class="sub">Download straight from the portal. Choose an agency to narrow the data, or leave it on all agencies.</p>
+
+      <div id="modTabs">
+        <button class="chip star" data-m="bg">BG Release &amp; Securities</button>
+        <button class="chip" data-m="fmc">FMC Cases</button>
+      </div>
+
+      <div class="filter">
+        <label for="bgAgency">Agency</label>
+        <select id="bgAgency" class="field" disabled><option value="">All agencies</option></select>
+      </div>
+
+      <div class="actions">
+        <div class="action">
+          <div><h4>Case register</h4><p>Every case with status, plaza, agency, PIU and RO. Spreadsheet.</p></div>
+          <button class="btn" data-bg="excel" disabled>Excel</button>
+        </div>
+        <div class="action">
+          <div><h4>Case register, print layout</h4><p>The same table as a PDF.</p></div>
+          <button class="btn" data-bg="pdf" disabled>PDF</button>
+        </div>
+        <div class="action">
+          <div><h4>RO-wise pending summary</h4><p>Cases waiting with the fee agency, PIU, RO and HQ, by regional office. Saves Excel and PDF.</p></div>
+          <button class="btn solid" data-bg="report" disabled>Click Here for Report</button>
+        </div>
+      </div>
+      <div id="bgMsg" class="result"></div>
+    </section>
+
+    <section id="cKPI" style="margin-top:52px">
+      <div class="label"><b>03a</b> Weekly report <span class="grow"></span><span class="meta">Needs sign-in</span></div>
+      <h2 class="h2">CO Division KPIs Status Update</h2>
+      <p class="sub">Downloads fresh FMC, BG, toilet / admin building notice and ongoing contract data, then fills the report template. Updated: cover date; contracts overview, Top 10 agencies and Annexure Table 5 (contracts without CA start / end date and duplicate Toll Plaza IDs are removed first); FMC and BG sections with trend tables and RO-wise summaries; notices section; Annexure Tables 1, 2 and 6. Every other section is kept as it is in the template.</p>
+      <div class="actions">
+        <div class="action">
+          <div><h4>Generate report</h4><p>Word file named "CO Division KPIs Status Update Report DDMMYYYY". About a minute.</p></div>
+          <button class="btn solid" id="kpiBuild">Generate .docx</button>
+        </div>
+      </div>
+      <div id="kpiMsg" class="result"></div>
+    </section>
+
+    <section id="cCO" style="margin-top:52px">
+      <div class="label"><b>03b</b> CO Division <span class="grow"></span><span class="meta">No sign-in needed</span></div>
+      <h2 class="h2">Toll Notification</h2>
+      <p class="sub">Reads the CO Division Power BI report and saves its tables. Progress above 85%, notification under process (summary and RO-wise), and the project list. Excel for the tables, Word with the same figures in words.</p>
+      <div class="actions">
+        <div class="action">
+          <div><h4>Toll Notification tables</h4><p>Excel (4 sheets) and Word (tables plus a plain-language reading).</p></div>
+          <button class="btn solid" id="coNotif">Download Excel + Word</button>
+        </div>
+      </div>
+      <h2 class="h2" style="margin-top:34px">Toll Plaza Windfall</h2>
+      <p class="sub">Windfall Gain tab with Select Period set to the last 1 week and Category set to 40% and above. Saves the RO-wise table, the plaza list, and the entire daily list.</p>
+      <div class="actions">
+        <div class="action">
+          <div><h4>Windfall tables</h4><p>One Excel file. Takes about a minute because the entire list has over 12,000 rows.</p></div>
+          <button class="btn solid" id="coRemit">Download Excel</button>
+        </div>
+      </div>
+      <div id="coMsg2" class="result"></div>
+      <div id="coMsg" class="result"></div>
+    </section>
+
+    <section style="margin-top:52px">
+      <div class="label"><b>04</b> Library <span class="grow"></span><span class="meta"><span id="sFiles">0</span> files &nbsp;·&nbsp; downloads\</span></div>
+      <div class="scroll"><table class="rows"><tbody id="files">
+        <tr><td class="empty">Nothing downloaded yet.</td></tr></tbody></table></div>
+    </section>
+
+    <details class="explore" id="cExplore">
+      <summary>Explore the portal <span class="grow" style="flex:1"></span><span id="locked" style="letter-spacing:0;text-transform:none;font-size:11.5px">Connect first</span></summary>
+
+      <p class="note" style="margin-top:6px"><span id="sSections">0</span> sections found. Pick one to scan it for downloadable documents.</p>
+      <div class="chips" id="chips"><span class="empty" style="padding:0">Sections appear after sign-in.</span></div>
+      <div class="row">
+        <input id="customUrl" class="field" placeholder="Or paste a datalakeg.nhai.gov.in page address" style="flex:1">
+        <button id="btnOpen" class="btn" disabled>Scan page</button>
+      </div>
+
+      <div class="cols">
+        <div>
+          <div class="label"><span>Documents found</span><span class="grow"></span>
+            <span class="meta" id="scanTitle" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+            <span class="meta"><span id="sFound">0</span></span>
+            <button id="btnAll" class="btn sm" disabled>Download all</button></div>
+          <div class="scroll"><table class="rows"><tbody id="docs">
+            <tr><td class="empty" colspan="2">Scan a page to list its documents.</td></tr></tbody></table></div>
+        </div>
+        <div>
+          <div class="label"><span>Live view</span><span class="grow"></span><button id="btnShot" class="btn sm" disabled>Refresh</button></div>
+          <img id="live" class="live hidden" alt="Live view of the portal session">
+          <div id="liveEmpty" class="empty">Shows what the background browser sees.</div>
+        </div>
+      </div>
+    </details>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let S = {state:'idle'}, busy = false, capVer = 0, scanUrl = null, saved = new Set();
+const TOLL = 'https://datalakeg.nhai.gov.in/nhai/tollPlaza/Adv_TollPlaza';
+
+async function api(path, body){
+  const r = await fetch(path, body === undefined ? {} : {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  let j = {}; try { j = await r.json(); } catch(e){}
+  if(!r.ok || j.ok === false) throw new Error(j.error || ('Request failed ('+r.status+')'));
+  return j;
+}
+function setBusy(on, text){
+  busy = on;
+  $('vBusy').classList.toggle('hidden', !on);
+  if(on) $('busyText').lastElementChild.textContent = text || 'Working…';
+  render();
+}
+function showErr(msg){ const e=$('connErr'); e.textContent = msg||''; e.classList.toggle('hidden', !msg); }
+
+function render(){
+  const st = S.state, on = st === 'logged_in';
+  const pill = $('pill'); pill.className = '';
+  const map = {idle:['','Not connected'], starting:['warn','Connecting…'], captcha_required:['warn','Captcha needed'],
+               logging_in:['warn','Signing in…'], logged_in:['good','Connected'], error:['bad','Error']};
+  const [cls, txt] = map[st] || map.idle; if(cls) pill.classList.add(cls); $('pillText').textContent = txt;
+
+  $('vIdle').classList.toggle('hidden', busy || !(st==='idle' || st==='error'));
+  renderCred();
+  $('vCaptcha').classList.toggle('hidden', busy || st!=='captcha_required');
+  $('vOn').classList.toggle('hidden', busy || !on);
+  $('btnDisc').classList.toggle('hidden', st==='idle');
+
+  const step = st==='idle'||st==='error' ? 1 : st==='starting' ? 1 : st==='captcha_required'||st==='logging_in' ? 2 : 4;
+  document.querySelectorAll('.step').forEach(el => {
+    const n = +el.dataset.s; el.classList.toggle('done', n < step || (on && n<=3)); el.classList.toggle('active', n === step);
+  });
+
+  $('locked').textContent = on ? 'Ready' : 'Connect first';
+  $('btnOpen').disabled = !on || busy; $('btnShot').disabled = !on;
+  const nav = S.nav || [];
+  $('navCount').textContent = nav.length; $('sSections').textContent = nav.length;
+  if(on){
+    const items = [{title:'Toll Plaza Dashboard', url:TOLL, star:true}, ...nav.filter(n => n.url !== TOLL)];
+    $('chips').innerHTML = items.map(n => `<button class="chip ${n.star?'star':''}" data-u="${esc(n.url)}" title="${esc(n.url)}">${esc(n.title)}</button>`).join('');
+  } else if(!nav.length){
+    $('chips').innerHTML = '<span class="empty" style="padding:0">Sections appear after sign-in.</span>';
+  }
+
+  if(st==='captcha_required' && S.captcha_version !== capVer){
+    capVer = S.captcha_version; $('capImg').src = '/api/captcha.png?v=' + capVer; $('capText').value=''; setTimeout(()=>$('capText').focus(), 50);
+  }
+  const ce = $('capErr'); ce.textContent = S.message || ''; ce.classList.toggle('hidden', !(S.message && st==='captcha_required'));
+  if(st==='error' && S.message) showErr(S.message); else if(st!=='error') showErr('');
+
+  $('log').innerHTML = (S.logs||[]).slice().reverse().map(l => `<div><b>${esc(l.t)}</b><span>${esc(l.m)}</span></div>`).join('') || '<div><b>--:--</b>Waiting…</div>';
+
+  // documents
+  const scan = S.scan, links = scan ? scan.links : [];
+  $('sFound').textContent = links.length;
+  $('scanTitle').textContent = scan ? scan.title : '';
+  $('btnAll').disabled = !links.length || busy;
+  if(scan){
+    $('docs').innerHTML = links.length ? links.map((l,i) => `<tr><td class="t" title="${esc(l.url)}">${esc(l.title)}</td>
+      <td class="n">${saved.has(l.url) ? '<span class="done-ok">saved</span>' : `<button class="btn sm" data-d="${i}">Download</button>`}</td></tr>`).join('')
+      : `<tr><td colspan="2" class="empty">No direct download links on this page${scan.tables?` (it has ${scan.tables} data table${scan.tables>1?'s':''}; check Live view)`:''}.</td></tr>`;
+  }
+  const files = S.files || []; $('sFiles').textContent = files.length;
+  $('files').innerHTML = files.length ? files.map(f => `<tr><td class="t"><a href="/files/${encodeURIComponent(f.name)}">${esc(f.name)}</a></td>
+    <td class="n">${(f.size/1024).toFixed(0)} KB &nbsp;·&nbsp; ${esc(f.time)}</td></tr>`).join('') : '<tr><td class="empty">Nothing downloaded yet.</td></tr>';
+}
+
+async function poll(){
+  try { S = await api('/api/status'); } catch(e){}
+  render();
+  setTimeout(poll, busy || S.state==='logging_in' ? 1200 : 4000);
+}
+
+let editCred = false;
+function renderCred(){
+  const need = S.has_credentials === false || editCred;
+  $('credBox').classList.toggle('hidden', !need);
+  $('credChange').classList.toggle('hidden', need || S.has_credentials !== true);
+  $('credChange').textContent = `Signed in as ${S.user || 'saved user'} · change saved login`;
+}
+$('credChange').onclick = e => { e.preventDefault(); editCred = true; $('credUser').value = S.user || ''; renderCred(); };
+$('btnConnect').onclick = async () => {
+  showErr('');
+  if(S.has_credentials === false || editCred){
+    const user = $('credUser').value.trim(), password = $('credPass').value;
+    if(!user || !password) return showErr('Enter the portal user name and password.');
+    try { await api('/api/credentials', {user, password}); } catch(e){ return showErr(e.message); }
+    $('credPass').value = ''; editCred = false;
+    S = await api('/api/status');
+  }
+  setBusy(true, 'Opening the portal and preparing the login…');
+  try { await api('/api/connect', {}); } catch(e){ showErr(e.message); }
+  S = await api('/api/status'); setBusy(false);
+};
+$('btnRef').onclick = async () => { $('btnRef').disabled = true; try { await api('/api/captcha/refresh', {}); S = await api('/api/status'); } catch(e){ showErr(e.message); } $('btnRef').disabled = false; render(); };
+async function submitCap(){
+  const text = $('capText').value.trim(); if(!text) return $('capText').focus();
+  setBusy(true, 'Signing in…');
+  try { await api('/api/captcha', {text}); } catch(e){ showErr(e.message); }
+  S = await api('/api/status'); setBusy(false);
+  if(S.state === 'logged_in') openPage(TOLL, true);
+}
+$('btnSubmit').onclick = submitCap;
+$('capText').addEventListener('keydown', e => { if(e.key==='Enter') submitCap(); });
+$('btnDisc').onclick = async () => { await api('/api/disconnect', {}); saved.clear(); S = await api('/api/status'); $('live').classList.add('hidden'); $('liveEmpty').classList.remove('hidden'); render(); };
+
+async function openPage(url, quiet){
+  setBusy(true, 'Scanning page for documents…');
+  try { await api('/api/open', {url}); scanUrl = url; } catch(e){ if(!quiet) showErr(e.message); }
+  S = await api('/api/status'); setBusy(false); refreshShot();
+}
+$('chips').onclick = e => { const b = e.target.closest('.chip'); if(b) openPage(b.dataset.u); };
+$('btnOpen').onclick = () => { const u = $('customUrl').value.trim(); if(u) openPage(u); };
+$('customUrl').addEventListener('keydown', e => { if(e.key==='Enter') $('btnOpen').click(); });
+
+async function dl(i, btn){
+  const l = S.scan.links[i]; if(btn){ btn.disabled = true; btn.innerHTML = '<span class="spin"></span>'; }
+  try { await api('/api/download', {url:l.url}); saved.add(l.url); } catch(e){ if(btn){ btn.disabled=false; btn.textContent='Retry'; } showErr(e.message); return false; }
+  return true;
+}
+$('docs').onclick = async e => { const b = e.target.closest('[data-d]'); if(!b) return; await dl(+b.dataset.d, b); S = await api('/api/status'); render(); };
+$('btnAll').onclick = async () => {
+  setBusy(true, 'Downloading documents…');
+  for(let i=0;i<S.scan.links.length;i++){ if(saved.has(S.scan.links[i].url)) continue;
+    $('busyText').lastElementChild.textContent = `Downloading ${i+1} of ${S.scan.links.length}…`; await dl(i); }
+  S = await api('/api/status'); setBusy(false);
+};
+
+function refreshShot(){
+  if(S.state !== 'logged_in') return;
+  const img = $('live'); img.onload = () => { img.classList.remove('hidden'); $('liveEmpty').classList.add('hidden'); };
+  img.src = '/api/screenshot.jpg?t=' + Date.now();
+}
+$('btnShot').onclick = refreshShot;
+
+/* Reports */
+let curMod = 'bg', loadedMod = null;
+const MOD_TITLES = {bg:'BG Release & Securities', fmc:'FMC Cases'};
+const bgBtns = () => document.querySelectorAll('[data-bg]');
+function applyMod(){
+  document.querySelectorAll('#modTabs .chip').forEach(c => c.classList.toggle('star', c.dataset.m === curMod));
+  $('modTitle').textContent = MOD_TITLES[curMod];
+}
+async function loadMod(){
+  if(S.state !== 'logged_in' || loadedMod === curMod) return;
+  loadedMod = curMod; applyMod();
+  $('bgInfo').textContent = 'Loading…'; $('bgMsg').textContent = '';
+  bgBtns().forEach(b => b.disabled = true); $('bgAgency').disabled = true;
+  try {
+    const j = await api('/api/mod/filters', {module:curMod});
+    const opt = (list, all) => `<option value="">${all}</option>` + list.map(a => `<option value="${esc(a.value)}">${esc(a.text)}</option>`).join('');
+    $('bgAgency').innerHTML = opt(j.agencies, 'All agencies');
+    $('bgAgency').disabled = false; bgBtns().forEach(b => b.disabled = false);
+    const total = (j.info || '').match(/of\s+([\d,]+)\s+entries/i);
+    $('bgInfo').textContent = total ? total[1] + ' cases' : j.agencies.length + ' agencies';
+  } catch(e){ loadedMod = null; $('bgInfo').textContent = 'Retry'; $('bgMsg').innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+}
+$('modTabs').onclick = e => { const c = e.target.closest('.chip'); if(!c || c.dataset.m === curMod) return; curMod = c.dataset.m; applyMod(); loadMod(); };
+bgBtns().forEach(b => b.onclick = async () => {
+  const kind = b.dataset.bg, label = b.textContent;
+  bgBtns().forEach(x => x.disabled = true);
+  b.innerHTML = '<span class="spin"></span> Working…'; $('bgMsg').textContent = 'Asking the portal. This can take a moment.';
+  try {
+    const j = await api('/api/mod/export', {module:curMod, kind, agency:$('bgAgency').value});
+    $('bgMsg').innerHTML = j.files.map(f => `Saved &nbsp;<a href="/files/${encodeURIComponent(f.name)}">${esc(f.name)}</a> &nbsp;(${(f.size/1024).toFixed(0)} KB)`).join('<br>');
+  } catch(e){ $('bgMsg').innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+  b.textContent = label; bgBtns().forEach(x => x.disabled = false);
+  S = await api('/api/status'); render();
+});
+const _render = render; render = function(){ _render(); if(S.state==='logged_in') loadMod(); else { loadedMod=null; $('bgInfo').textContent='Connect first'; } };
+applyMod();
+
+$('coNotif').onclick = async () => {
+  const b = $('coNotif'), label = b.textContent;
+  b.disabled = true; b.innerHTML = '<span class="spin"></span> Working…';
+  $('coMsg').textContent = 'Opening the Power BI report and reading its tables. About 30 seconds.';
+  try {
+    const j = await api('/api/co/notification', {});
+    const s = Object.fromEntries(j.summary);
+    $('coMsg').innerHTML = `Under process ${s['Notification Under Process']} · within NHAI ${s['File Within NHAI']} · to MoRTH ${s['File Forwarded to MoRTH']} · gazette ${s['Gazette Published']} · ${j.projects} projects listed<br>` +
+      j.files.map(f => `Saved &nbsp;<a href="/files/${encodeURIComponent(f.name)}">${esc(f.name)}</a> &nbsp;(${(f.size/1024).toFixed(0)} KB)`).join('<br>');
+  } catch(e){ $('coMsg').innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+  b.textContent = label; b.disabled = false;
+  S = await api('/api/status'); render();
+};
+
+$('kpiBuild').onclick = async () => {
+  const b = $('kpiBuild'), label = b.textContent;
+  b.disabled = true; b.innerHTML = '<span class="spin"></span> Working…';
+  $('kpiMsg').textContent = 'Downloading FMC, BG, toilet / admin building notices and ongoing contracts from the portal, then filling the report.';
+  try {
+    const j = await api('/api/report/build', {});
+    const f = j.fmc, g = j.bg;
+    $('kpiMsg').innerHTML =
+      `FMC ${f.total}: PIU ${f.piu} (${f.pendency} days) · Agency ${f.agency} (${f.agency_pendency} days) · RO ${f.ro} (${f.ro_pendency} days) · HQ ${f.hq}<br>` +
+      `BG ${g.total}: PIU ${g.piu} (${g.pendency} days) · Agency ${g.agency} (${g.agency_pendency} days) · RO ${g.ro} (${g.ro_pendency} days) · closed ${g.closed}<br>` +
+      (j.ongoing ? `Ongoing contracts ${j.ongoing.total} (dump ${j.ongoing.rows} rows − ${j.ongoing.blank_dates} without CA start/end date − ${j.ongoing.duplicates} duplicate plaza IDs): Regular ${j.ongoing.regular} · EQ ${j.ongoing.eq} · Manpower ${j.ongoing.manpower} · ${j.ongoing.agencies} agencies<br>` +
+        `Top 10 agencies (${j.ongoing.top10_total} contracts): ${j.ongoing.top10.map(a => `${esc(a.agency)} ${a.total}`).join(' · ')}<br>` : '') +
+      (j.notice ? `Notices ${j.notice.total}: rectified ${j.notice.rect} · no action taken ${j.notice.open} · average pendency ${j.notice.pendency} days<br>` : '') +
+      (j.issues.length ? `<span class="bad">Check before issuing: ${j.issues.map(esc).join('; ')}</span><br>` : 'The registers and the summary reports agree.<br>') +
+      `Saved &nbsp;<a href="/files/${encodeURIComponent(j.file.name)}">${esc(j.file.name)}</a> &nbsp;(${(j.file.size/1024).toFixed(0)} KB)`;
+  } catch(e){ $('kpiMsg').innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+  b.textContent = label; b.disabled = false;
+  S = await api('/api/status'); render();
+};
+
+$('coRemit').onclick = async () => {
+  const b = $('coRemit'), label = b.textContent;
+  b.disabled = true; b.innerHTML = '<span class="spin"></span> Working…';
+  $('coMsg2').textContent = 'Applying the filters and reading every window of the list. About a minute.';
+  try {
+    const j = await api('/api/co/remittance', {});
+    $('coMsg2').innerHTML = `Week ${esc(j.period)} · 40% and above · ${j.plazas} plazas · ${j.daily} rows for the week · ${j.entire.toLocaleString()} rows in the filtered entire list<br>` +
+      (j.missing.length ? `The entire-list report ends ${esc(j.last)} and does not include: ${esc(j.missing.join(', '))}<br>` : '') +
+      j.files.map(f => `Saved &nbsp;<a href="/files/${encodeURIComponent(f.name)}">${esc(f.name)}</a> &nbsp;(${(f.size/1024).toFixed(0)} KB)`).join('<br>');
+  } catch(e){ $('coMsg2').innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+  b.textContent = label; b.disabled = false;
+  S = await api('/api/status'); render();
+};
+
+poll();
+</script>
+</body>
+</html>

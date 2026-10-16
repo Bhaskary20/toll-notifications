@@ -1,0 +1,12 @@
+.env
+downloads/
+auth_state.json
+kpi_latest.json
+co_latest.json
+dist/
+build/
+__pycache__/
+tools/shots/
+*.pyc
+filessss/
+pbi_*url.txt
