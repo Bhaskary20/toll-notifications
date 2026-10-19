@@ -29,9 +29,10 @@ from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 from werkzeug.security import check_password_hash
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from paths import APP as BASE, FROZEN
+from paths import APP as BASE, DATA, FROZEN
 
-ENV_FILE = BASE / ".env"
+HOSTED = os.environ.get("HOSTED") == "1"   # running on a server (Docker / Railway), not on someone's computer
+ENV_FILE = DATA / ".env"
 load_dotenv(ENV_FILE)
 
 HOST = "datalakeg.nhai.gov.in"
@@ -47,6 +48,10 @@ DASH_USER = os.environ.get("DASHBOARD_USER", "Admin")
 DASH_HASH = os.environ.get("DASHBOARD_PASS_HASH") or (
     "scrypt:32768:8:1$55BzghRUT7cXEfHj$f708b91ea3b87e5fcd0160354686fa08732d20836b846294f211274ab0f58c1701483dd8926a9b4"
     "c3a142f0d7acde17d5e1c18fb076bc60cedc95ca6649d6345")
+if HOSTED and not os.environ.get("DASHBOARD_PASS_HASH"):
+    # the built-in default account is public knowledge; a server reachable from the internet must not use it
+    raise SystemExit("HOSTED=1 needs DASHBOARD_PASS_HASH (and DASHBOARD_USER). Create one with: "
+                     "py tools/make_password_hash.py")
 if not os.environ.get("DASHBOARD_SECRET"):
     # a fixed key per computer, so a sign-in survives server restarts
     ENV_FILE.touch(exist_ok=True)
@@ -54,8 +59,11 @@ if not os.environ.get("DASHBOARD_SECRET"):
     set_key(str(ENV_FILE), "DASHBOARD_SECRET", os.environ["DASHBOARD_SECRET"], quote_mode="always")
 app.secret_key = os.environ["DASHBOARD_SECRET"]
 app.config.update(SESSION_COOKIE_NAME="tod_session", SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
-                  PERMANENT_SESSION_LIFETIME=timedelta(days=30))
-SIGNED_OUT_OK = {"login_page", "login"}
+                  SESSION_COOKIE_SECURE=HOSTED, PERMANENT_SESSION_LIFETIME=timedelta(days=30))
+if HOSTED:   # behind the host's HTTPS proxy: see the visitor's real address (login lock-out) and https
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+SIGNED_OUT_OK = {"login_page", "login", "healthz"}
 _fails, _fails_lock = {}, threading.Lock()
 MAX_FAILS, LOCK_SECONDS = 5, 60
 
@@ -423,7 +431,7 @@ class Worker(threading.Thread):
         return saved, entries
 
     # ---- session persistence -------------------------------------------
-    STATE_FILE = BASE / "auth_state.json"
+    STATE_FILE = DATA / "auth_state.json"
 
     def resume(self):
         """Re-use a saved session (survives server restarts) without a new captcha."""
@@ -603,6 +611,11 @@ def logout():
     return ok()
 
 
+@app.get("/healthz")
+def healthz():
+    return "ok"   # for the host's health check; says nothing about the portal session
+
+
 @app.get("/")
 def index():
     r = send_from_directory(app.static_folder, "index.html")
@@ -620,7 +633,7 @@ def status():
 
 def _read_json(name):
     import json
-    f = BASE / name
+    f = DATA / name
     try:
         return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
     except ValueError:
@@ -633,7 +646,7 @@ def _save_latest(name, key, payload):
     try:
         data = _read_json(name) or {}
         data[key] = {**payload, "date": time.strftime("%Y-%m-%d"), "saved_at": time.strftime("%d %b %H:%M")}
-        (BASE / name).write_text(json.dumps(data, indent=1, default=str), encoding="utf-8")
+        (DATA / name).write_text(json.dumps(data, indent=1, default=str), encoding="utf-8")
     except Exception as e:
         W.log(f"Could not remember the last {key} result: {str(e)[:80]}")
 

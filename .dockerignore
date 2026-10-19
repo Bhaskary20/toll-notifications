@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+auth_state.json
+kpi_latest.json
+co_latest.json
+pbi_*url.txt
+downloads/
+dist/
+build/
+filessss/
+tools/shots/
+sample output/
+understanding/
+DASHBOARD_PLAN.md
+__pycache__/
+*.pyc

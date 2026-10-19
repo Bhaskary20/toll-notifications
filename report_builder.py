@@ -44,10 +44,10 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from paths import APP as BASE
+from paths import APP as BASE, DATA
 TEMPLATE = BASE / "templates" / "CO_KPI_template.docx"
 CONFIG = BASE / "report_config.json"
-HISTORY = BASE / "report_history.json"
+HISTORY = DATA / "report_history.json"
 
 STATUS = {
     "Submitted by User Fee Agency": "piu",

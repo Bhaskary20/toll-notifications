@@ -8,7 +8,9 @@ from playwright.sync_api import sync_playwright
 from pbi_decode import decode, to_date
 
 from paths import APP as BASE
-NOTIF_URL = (BASE / "pbi_notification_url.txt").read_text().strip()
+import os
+# the report link: PBI_NOTIFICATION_URL when set (hosted), else the text file next to the program
+NOTIF_URL = (os.environ.get("PBI_NOTIFICATION_URL") or (BASE / "pbi_notification_url.txt").read_text()).strip()
 P = "GetProjectInformationForPowerBI."
 
 

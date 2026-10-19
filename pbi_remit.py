@@ -20,8 +20,10 @@ from playwright.sync_api import sync_playwright
 from pbi_decode import decode, to_date
 
 from paths import APP as BASE
-MAIN_URL = (BASE / "pbi_remittance_url.txt").read_text().strip()
-LIST_URL = (BASE / "pbi_remittance_data_url.txt").read_text().strip()
+import os
+# the report links: PBI_REMITTANCE_URL / PBI_REMITTANCE_DATA_URL when set (hosted), else the text files
+MAIN_URL = (os.environ.get("PBI_REMITTANCE_URL") or (BASE / "pbi_remittance_url.txt").read_text()).strip()
+LIST_URL = (os.environ.get("PBI_REMITTANCE_DATA_URL") or (BASE / "pbi_remittance_data_url.txt").read_text()).strip()
 PAGE = 500
 
 
