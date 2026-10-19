@@ -8,13 +8,14 @@ Sections refreshed from Data Lake on every run:
     numbers taken from Word)
   * Pending FMC cases: heading, bullets, KPI trend table, RO-wise summary, Annexure Table 1
   * Pending BG / Security release: heading, bullets, KPI trend table, RO-wise summary, Annexure Table 2
-  * Public Funded contracts overview, comparative table of EQ / Regular contracts (previous report vs Data Lake
+  * Public Funded contracts overview (Type of Contract table: previous weekly report vs this one), comparative table of EQ / Regular contracts (previous report vs Data Lake
     entries, entries not counted and contracts counted), Top 10 agencies, Annexure Table 5 (Ongoing Contracts dump)
   * Notices on poor keep-up of toilets / admin building: heading, bullets, agency-wise table, Annexure Table 6
 
 Rules (taken from the issued report):
   status  "Submitted by User Fee Agency"              -> pending with PIU
           "Conveying Decision Uploaded by PIU"         -> pending with Agency (decision letter uploaded)
+          "Conveying Decision Uploaded by RO"          -> pending with Agency (same, decision uploaded by the RO)
           "Representation to RO for Release"           -> pending with RO
           "Representation to CGM(CO)HQ for Release"    -> pending with HQ
           "Satisfied & Closed by User Fee Agency"      -> satisfied & closed
@@ -23,7 +24,8 @@ Rules (taken from the issued report):
                       representation to RO)
   notices           = blank Rectification Date -> no action taken; pending days = report date - Notice Date
   shares / growth   = rounded to the nearest whole percent
-  trend             = baseline date (report_config.json) + the last three snapshots in report_history.json
+  trend             = baseline date (report_config.json) + the report date and the Mondays before it, a week apart
+                      (snapshots in report_history.json)
 """
 import copy
 import json
@@ -50,6 +52,7 @@ HISTORY = BASE / "report_history.json"
 STATUS = {
     "Submitted by User Fee Agency": "piu",
     "Conveying Decision Uploaded by PIU": "agency",
+    "Conveying Decision Uploaded by RO": "agency",
     "Representation to RO for Release": "ro",
     "Representation to CGM(CO)HQ for Release": "hq",
     "Satisfied & Closed by User Fee Agency": "closed",
@@ -536,6 +539,28 @@ def set_page_break_before(p_el):
                           "w:snapToGrid", "w:spacing", "w:ind") + _AFTER_IND)
 
 
+def trim_section_tail(doc):
+    """The portrait part of the report ends with a few empty paragraphs and the section break before the landscape
+    Annexures. When the last table above ends near the foot of its page those empty lines spill onto a page of
+    their own (a blank page before Annexures). They carry no content, so drop them and keep the section break as a
+    one-point line."""
+    body = doc.element.body
+    head = next((p for p in body.iterchildren(qn("w:p"))
+                 if "".join(t.text or "" for t in p.iter(qn("w:t"))).strip().upper() == "ANNEXURES"), None)
+    brk = head.getprevious() if head is not None else None
+    if brk is None or brk.tag != qn("w:p") or brk.find(".//" + qn("w:sectPr")) is None:
+        return
+    prev = brk.getprevious()
+    while prev is not None and prev.tag == qn("w:p") and prev.find(".//" + qn("w:sectPr")) is None \
+            and not any(prev.iter(qn("w:t"), qn("w:drawing"), qn("w:br"), qn("w:tab"))):
+        gone, prev = prev, prev.getprevious()
+        body.remove(gone)
+    sp = OxmlElement("w:spacing")
+    for k, v in (("before", "0"), ("after", "0"), ("line", "20"), ("lineRule", "exact")):
+        sp.set(qn("w:" + k), v)
+    _put(_ppr(brk), sp, ("w:ind",) + _AFTER_IND)
+
+
 def styled_table(proto, head_cells, body_cells, header, rows, widths, bold_last=False):
     """A new table in the look of `proto` (same table style, borders, fonts, header shading).
     head_cells / body_cells: (first column cell, other cell) of proto's header row and first data row."""
@@ -589,13 +614,24 @@ def add_bookmark(p_el, name, bid):
 
 
 # ---------------------------------------------------------------- build
-def kpi_columns(history, baseline, report_date, current):
+def kpi_columns(history, baseline, report_date, current, weeks=6):
+    """Baseline + one column per week back from the report date (19 Oct, 12 Oct, 5 Oct, ...), the report being
+    issued every Monday. Each week shows its snapshot of that day, else the latest one in the 7 days before it;
+    a week without any snapshot is left out. Mid-week runs are kept in the history but not shown."""
     snaps = dict(history)
     snaps[report_date.isoformat()] = current
     keys = sorted(snaps)
     base_key = baseline.isoformat() if baseline.isoformat() in snaps else keys[0]
-    after = [k for k in keys if k > base_key][-3:]
-    cols = [base_key] + after
+    weekly = []
+    for w in range(weeks):
+        day = report_date - timedelta(days=7 * w)
+        lo, hi = (day - timedelta(days=7)).isoformat(), day.isoformat()
+        if hi <= base_key:
+            break
+        got = [k for k in keys if lo < k <= hi and k > base_key]
+        if got:
+            weekly.append(got[-1])
+    cols = [base_key] + sorted(weekly)
     return [(date.fromisoformat(k), snaps[k]) for k in cols], snaps
 
 
@@ -668,6 +704,22 @@ def comparison_rows(O):
     return rows
 
 
+def type_rows(O, report_date):
+    """Header and rows of the 'Type of Contract' table: count (share) of the previous weekly report, if any, and of
+    this report."""
+    prev = O.get("previous")
+    head = ["Type of Contract"]
+    cols = []
+    if prev:
+        counts = [prev[1][k] for k, _ in CONTRACT_TYPES]
+        pct = largest_remainder(counts, sum(counts))
+        head.append(f"Previous Week ({d_short(prev[0])})")
+        cols.append({k: f"{c} ({p}%)" for (k, _), c, p in zip(CONTRACT_TYPES, counts, pct)})
+    head.append(f"Current Week ({d_short(report_date)})" if prev else "Number")
+    cols.append({k: f"{O[k]} ({O[k + '_pct']}%)" for k, _ in CONTRACT_TYPES})
+    return head, {k: [c[k] for c in cols] for k, _ in CONTRACT_TYPES}
+
+
 def fill_ongoing(doc, paras, texts, O, report_date):
     """Public Funded Toll Plaza Contracts Overview + comparative table of EQ / Regular contracts + Top 10 agencies +
     Annexure 'Total Agencies with contract in hand'."""
@@ -683,15 +735,43 @@ def fill_ongoing(doc, paras, texts, O, report_date):
     p_top10 = para(lambda s: re.match(r"^Top 10 Toll Collecting Agencies holding", s) is not None)
     rewrite(p_top10, [(f"Top 10 Toll Collecting Agencies holding {O['top10_total']} Contracts:", None)])
 
+    # one number column per report shown (previous week, this week), each a copy of the template's last column;
+    # the label column keeps its width and the number columns share the rest
     t = find_table(doc, "Type of Contract")
-    for tr in t._tbl.findall(qn("w:tr"))[1:]:
+    head, vals = type_rows(O, report_date)
+    n = len(head) - 1
+    grid = t._tbl.find(qn("w:tblGrid"))
+    gcols = grid.findall(qn("w:gridCol"))
+    total_w = sum(int(g.get(qn("w:w"))) for g in gcols)
+    label_w = int(gcols[0].get(qn("w:w"))) if n == 1 else round(total_w * 0.42)
+    num_w = (total_w - label_w) // n
+    gcols[0].set(qn("w:w"), str(label_w))
+    for g in gcols[1:]:
+        grid.remove(g)
+    for _ in range(n):
+        g = copy.deepcopy(gcols[1])
+        g.set(qn("w:w"), str(num_w))
+        grid.append(g)
+    for i, tr in enumerate(t._tbl.findall(qn("w:tr"))):
         tcs = tr.findall(qn("w:tc"))
-        label = _ptext(tcs[0]).strip()
-        key = "eq" if label.startswith("EQ") else "regular" if label.startswith("Regular") else \
-            "manpower" if label.startswith("Manpower") else None
-        if key is None:
-            raise LookupError(f"unexpected row '{label}' in the Type of Contract table")
-        set_cell(tcs[1], f"{O[key]} ({O[key + '_pct']}%)")
+        proto = copy.deepcopy(tcs[-1])
+        for tc in tcs[1:]:
+            tr.remove(tc)
+        if i == 0:
+            values = head[1:]
+        else:
+            label = _ptext(tcs[0]).strip()
+            key = "eq" if label.startswith("EQ") else "regular" if label.startswith("Regular") else \
+                "manpower" if label.startswith("Manpower") else None
+            if key is None:
+                raise LookupError(f"unexpected row '{label}' in the Type of Contract table")
+            values = vals[key]
+        for v in values:
+            tc = copy.deepcopy(proto)
+            tc.find(qn("w:tcPr")).find(qn("w:tcW")).set(qn("w:w"), str(num_w))
+            set_cell(tc, v)
+            tr.append(tc)
+        tcs[0].find(qn("w:tcPr")).find(qn("w:tcW")).set(qn("w:w"), str(label_w))
 
     # ---- comparative table of EQ / Regular contracts, after the Top 10 (page 3 keeps the layout of the issued
     # report): why the counts differ from the previous report and from the number of entries in Data Lake
@@ -1196,6 +1276,8 @@ def build(fmc_reg, fmc_cnt, bg_reg, bg_cnt, out_dir, report_date=None, template=
         i_n = idx(lambda s: s.startswith("Notices on Poor Keep-up of Toilets"), i_b, i_e)
         fill_notice_section(doc, paras, texts, i_n, i_e, notices, n_ag, N, report_date)
 
+    trim_section_tail(doc)
+
     # ---- contents page (last, so it lists every section and annexure of this report)
     contents = build_contents(doc)
 
@@ -1309,6 +1391,16 @@ def verify(path, s):
         shown = [int(h.findall(".//" + qn("w:t"))[-1].text) for h in links]
         if shown != [s["pages"][n] for n in names] or shown != sorted(shown):
             raise AssertionError("verification failed: Contents page numbers are missing or out of order")
+
+    # Type of Contract table: previous week (when there is one) and this week, matching the counts
+    if O:
+        tt = find_table_by_header(d, lambda h: h and h[0] == "Type of Contract" and not any("Data Lake" in x for x in h),
+                                  "Type of Contract")
+        head, vals = type_rows(O, s["date"])
+        got = [[c.text for c in r.cells] for r in tt.rows]
+        want = [head] + [[label] + vals[k] for k, label in CONTRACT_TYPES]
+        if got != want:
+            raise AssertionError(f"verification failed: the Type of Contract table is {got}, expected {want}")
 
     # comparative table of EQ / Regular contracts: each row adds up and matches the counts in the report
     if O:

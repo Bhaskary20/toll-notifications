@@ -55,5 +55,19 @@
     "ongoing_eq": 142,
     "ongoing_regular": 596,
     "ongoing_manpower": 2
+  },
+  "2026-10-19": {
+    "fmc": 39,
+    "bg": 47,
+    "fmc_pending": 39,
+    "bg_pending": 46,
+    "fmc_wait": 12,
+    "bg_wait": 18,
+    "notice": 23,
+    "notice_open": 22,
+    "ongoing": 733,
+    "ongoing_eq": 138,
+    "ongoing_regular": 593,
+    "ongoing_manpower": 2
   }
 }

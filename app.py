@@ -171,7 +171,10 @@ class Worker(threading.Thread):
     def _on_dialog(self, d):
         self.last_dialog = d.message
         self.log(f"Site says: {d.message[:120]}")
-        d.accept()
+        try:
+            d.accept()
+        except Exception:
+            pass  # page already navigated/closed; nothing left to dismiss
 
     def refresh_captcha(self):
         self.page.evaluate("createCaptcha()")
