@@ -30,6 +30,7 @@ Rules (taken from the issued report):
 import copy
 import json
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -1016,6 +1017,8 @@ try {
 def word_page_numbers(path, names, timeout=150):
     """Page number (as printed in the footer) of each bookmark, read by laying out a copy of the report in Microsoft
     Word. Returns (pages, None) or (None, reason). Only the Word instance started here is ever closed."""
+    if os.environ.get("SKIP_WORD_PAGES") == "1":   # a server without Word, or a Windows service (no desktop for Word)
+        return None, "disabled on this server"
     tmp = Path(tempfile.mkdtemp(prefix="co_report_"))
     try:
         doc = tmp / "report.docx"

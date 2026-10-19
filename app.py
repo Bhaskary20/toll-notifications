@@ -31,9 +31,9 @@ from werkzeug.security import check_password_hash
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from paths import APP as BASE, DATA, FROZEN
 
-HOSTED = os.environ.get("HOSTED") == "1"   # running on a server (Docker / Railway), not on someone's computer
 ENV_FILE = DATA / ".env"
 load_dotenv(ENV_FILE)
+HOSTED = os.environ.get("HOSTED") == "1"   # running on a server (Docker, Railway, Windows server), not on someone's computer
 
 HOST = "datalakeg.nhai.gov.in"
 ROOT = f"https://{HOST}/nhai/"
@@ -651,6 +651,39 @@ def _save_latest(name, key, payload):
         W.log(f"Could not remember the last {key} result: {str(e)[:80]}")
 
 
+@app.get("/api/diag")
+def diag():
+    """Can this machine reach the portal? Plain network steps, no browser, for a hosted copy that cannot connect:
+    name lookup, TCP connection to port 443, an HTTPS request, and the address the portal sees us coming from."""
+    import json
+    import socket
+    import urllib.request
+    ua = {"User-Agent": "Mozilla/5.0"}
+
+    def step(fn):
+        t = time.time()
+        try:
+            res = fn()
+            return {"ok": True, "seconds": round(time.time() - t, 2), **res}
+        except Exception as e:
+            return {"ok": False, "seconds": round(time.time() - t, 2), "http_status": getattr(e, "code", None),
+                    "error": f"{type(e).__name__}: {str(e)[:160]}"}
+
+    def https():
+        with urllib.request.urlopen(urllib.request.Request(ROOT, headers=ua), timeout=20) as r:
+            return {"http_status": r.status, "bytes_read": len(r.read(200000))}
+
+    def whoami():
+        with urllib.request.urlopen(urllib.request.Request("https://ipapi.co/json/", headers=ua), timeout=8) as r:
+            d = json.loads(r.read())
+        return {k: d.get(k) for k in ("ip", "country_name", "region", "org")}
+
+    return jsonify(
+        dns=step(lambda: {"addresses": sorted({a[4][0] for a in socket.getaddrinfo(HOST, 443)})}),
+        tcp_443=step(lambda: socket.create_connection((HOST, 443), timeout=10).close() or {}),
+        https=step(https), this_server=step(whoami))
+
+
 @app.get("/api/history")
 def history():
     """Daily snapshots written by the KPI report (report_history.json), for the dashboard trend charts."""
@@ -672,7 +705,9 @@ def dashboard():
 def save_credentials():
     """First-run setup: keep the portal user name and password in .env on this computer only."""
     origin = request.headers.get("Origin")
-    if request.host not in ("127.0.0.1:5055", "localhost:5055") or (origin and urlparse(origin).netloc != request.host):
+    # this computer's address, plus the server's own address(es) when hosted (PUBLIC_HOST=toll.example.gov.in)
+    trusted = {"127.0.0.1:5055", "localhost:5055"} | {h.strip() for h in os.environ.get("PUBLIC_HOST", "").split(",") if h.strip()}
+    if request.host not in trusted or (origin and urlparse(origin).netloc != request.host):
         return fail("Open the tool from http://127.0.0.1:5055 to save credentials.", 403)
     body = request.get_json(silent=True) or {}
     user, pw = str(body.get("user") or "").strip(), str(body.get("password") or "")
